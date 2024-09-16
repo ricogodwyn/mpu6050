@@ -47,7 +47,7 @@ THE SOFTWARE.
 // I2Cdev and MPU6050 must be installed as libraries, or else the .cpp/.h files
 // for both classes must be in the include path of your project
 #include "I2Cdev.h"
-
+#include "BluetoothSerial.h"
 #include "MPU6050_6Axis_MotionApps20.h"
 //#include "MPU6050.h" // not necessary if using MotionApps include file
 
@@ -141,7 +141,7 @@ VectorInt16 aaWorld;    // [x, y, z]            world-frame accel sensor measure
 VectorFloat gravity;    // [x, y, z]            gravity vector
 float euler[3];         // [psi, theta, phi]    Euler angle container
 float ypr[3];           // [yaw, pitch, roll]   yaw/pitch/roll container and gravity vector
-
+BluetoothSerial SerialBT;
 // packet structure for InvenSense teapot demo
 uint8_t teapotPacket[14] = { '$', 0x02, 0,0, 0,0, 0,0, 0,0, 0x00, 0x00, '\r', '\n' };
 
@@ -175,6 +175,9 @@ void setup() {
     // (115200 chosen because it is required for Teapot Demo output, but it's
     // really up to you depending on your project)
     Serial.begin(9600);
+    Serial.println("Begin!!");
+    SerialBT.begin("ESP32 Bluetooth Controller"); // Bluetooth device name
+    Serial.println("Bluetooth started");
     while (!Serial); // wait for Leonardo enumeration, others continue immediately
 
     // NOTE: 8MHz or slower host processors, like the Teensy @ 3.3V or Arduino
@@ -260,6 +263,7 @@ void loop() {
             // display quaternion values in easy matrix form: w x y z
             mpu.dmpGetQuaternion(&q, fifoBuffer);
           //  Serial.print("quat\t");
+            
             Serial.print(q.w);
             Serial.print(",");
             Serial.print(q.x);
@@ -268,6 +272,15 @@ void loop() {
             Serial.print(",");
             Serial.println(q.z);
 
+            if (SerialBT.hasClient()) {
+                SerialBT.print(q.w);
+                SerialBT.print(",");
+                SerialBT.print(q.x);
+                SerialBT.print(",");
+                SerialBT.print(q.y);
+                SerialBT.print(",");
+                SerialBT.println(q.z);
+            }
      
 
         #endif
@@ -284,7 +297,6 @@ void loop() {
             Serial.println(euler[2] * 180/M_PI);
         #endif
 
-        // asda
         #ifdef OUTPUT_READABLE_YAWPITCHROLL
             // display Euler angles in degrees
             mpu.dmpGetQuaternion(&q, fifoBuffer);
