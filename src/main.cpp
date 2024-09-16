@@ -49,6 +49,7 @@ THE SOFTWARE.
 #include "I2Cdev.h"
 #include "BluetoothSerial.h"
 #include "MPU6050_6Axis_MotionApps20.h"
+#include "WiFi.h"
 //#include "MPU6050.h" // not necessary if using MotionApps include file
 
 // Arduino Wire library is required if I2Cdev I2CDEV_ARDUINO_WIRE implementation
@@ -155,7 +156,11 @@ volatile bool mpuInterrupt = false;     // indicates whether MPU interrupt pin h
 void dmpDataReady() {
     mpuInterrupt = true;
 }
+const char* ssid = "ficofichky";
+const char* password = "ficofichkymanuetha_123";
 
+// TCP server
+WiFiServer server(80);
 
 
 // ================================================================
@@ -176,6 +181,18 @@ void setup() {
     // really up to you depending on your project)
     Serial.begin(9600);
     Serial.println("Begin!!");
+    WiFi.begin(ssid, password);
+
+    while (WiFi.status() != WL_CONNECTED) {
+        delay(1000);
+        Serial.println("Connecting to WiFi...");
+    }
+
+    Serial.println("Connected to WiFi");
+    Serial.print("IP Address: ");
+    Serial.println(WiFi.localIP());
+
+    server.begin();
     SerialBT.begin("ESP32 Bluetooth Controller"); // Bluetooth device name
     Serial.println("Bluetooth started");
     while (!Serial); // wait for Leonardo enumeration, others continue immediately
@@ -255,6 +272,23 @@ void setup() {
 // ================================================================
 
 void loop() {
+    WiFiClient client = server.available();
+
+    if (client) {
+        Serial.println("Client connected");
+
+        while (client.connected()) {
+            if (mpu.dmpGetCurrentFIFOPacket(fifoBuffer)) {
+                mpu.dmpGetQuaternion(&q, fifoBuffer);
+                String message = String(q.w) + "," + String(q.x) + "," + String(q.y) + "," + String(q.z);
+                client.println(message);
+                delay(1000); // Adjust the delay as needed
+            }
+        }
+
+        client.stop();
+        Serial.println("Client disconnected");
+    }
     // if programming failed, don't try to do anything
     if (!dmpReady) return;
     // read a packet from FIFO
@@ -272,15 +306,15 @@ void loop() {
             Serial.print(",");
             Serial.println(q.z);
 
-            if (SerialBT.hasClient()) {
-                SerialBT.print(q.w);
-                SerialBT.print(",");
-                SerialBT.print(q.x);
-                SerialBT.print(",");
-                SerialBT.print(q.y);
-                SerialBT.print(",");
-                SerialBT.println(q.z);
-            }
+            // if (SerialBT.hasClient()) {
+            //     SerialBT.print(q.w);
+            //     SerialBT.print(",");
+            //     SerialBT.print(q.x);
+            //     SerialBT.print(",");
+            //     SerialBT.print(q.y);
+            //     SerialBT.print(",");
+            //     SerialBT.println(q.z);
+            // }
      
 
         #endif
